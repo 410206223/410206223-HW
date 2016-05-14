@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 2%;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+#gui {
+  position: absolute;
+  top: 30px;
+  right: 1%;
+  height: 350px;
+  width: 100px;
+}
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body> 
+<div id="info">
+  hw5 <br>GLSL
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script>
+<script id="myVertexShader" type="x-shader/x-vertex">
+  uniform int shading;
+  uniform int coordinate;
+  varying vec4 p;
+  varying vec3 color;
+	
+  void perVertexShading() {
+	if(coordinate == 0){
+		if (position.x > 0.0) 
+			color = vec3 (0,0,0);
+		else
+			color = vec3 (1,1,1);
+	}
+	else if(coordinate == 1){
+		if ((modelMatrix * vec4(position, 1.0)).x > 0.0) 
+			color = vec3 (0,0,0);
+		else
+			color = vec3 (1,1,1);
+	}
+	else if(coordinate == 2){
+		if ((viewMatrix * modelMatrix * vec4(position, 1.0)).x > 0.0) 
+			color = vec3 (0,0,0);
+		else
+			color = vec3 (1,1,1);
+	}
+  }
+  
+  
+	void perPixelShading() {
+		if(coordinate == 0){
+			p = vec4(position, 1.0);
+		}
+		else if(coordinate == 1){
+			p = modelMatrix * vec4(position, 1.0);
+		}
+		else if(coordinate == 2){
+			p = viewMatrix * modelMatrix * vec4(position, 1.0);
+		}
+	}
+	
+	void main() {
+		gl_Position = projectionMatrix* modelViewMatrix * vec4( position, 1.0);
+  	if (shading == 0)  // per-vertex shading
+    	perVertexShading();
+    else
+    	perPixelShading();
+  }
+</script>
+<script id="myFragmentShader" type="x-shader/x-fragment">
+  varying vec3 color;
+  varying vec4 p;
+  uniform int shading;
+	void main() {
+		gl_FragColor = vec4 (color, 1.0);
+		if(shading == 1){
+			if (p.x > 0.0) 
+				gl_FragColor = vec4 (0,0,0,0);
+			else
+				gl_FragColor = vec4 (1,1,1,1);
+		}
+	}
+</script>
+
+<script>
+var scene, renderer, camera;
+var controls;
+var jsonModel, jsonModel2;
+var angle = 0;
+init();
+animate();
+function init() {
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(width, height);
+  renderer.setClearColor(0x888888);
+  renderer.shadowMapEnabled = true;
+  renderer.shadowMapType = THREE.PCFShadowMap;
+  document.body.appendChild(renderer.domElement);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000);
+  camera.position.z = 200;
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 130, 130),new THREE.MeshLambertMaterial({ color: 'white' }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  pointLight = new THREE.PointLight(0xffffff);
+  pointLight.position.set(200, 300, 200);
+  scene.add(pointLight);
+  var ambientLight = new THREE.AmbientLight(0x111111);
+  scene.add(ambientLight);
+/////////////////////////////////////////////
+	gcontrols = new function() {
+    this.shading = 'per-vertex';
+    this.coordinate = 'object';
+  }
+/////////////////////////////////////////////////////////////////
+
+
+  teapotMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      lightpos: {type:'v3', value: new THREE.Vector3(0, 30, 20) },
+	  shading: {type:'i', value: 0},
+      coordinate: {type:'i', value: 0}
+	},
+    vertexShader: document.getElementById('myVertexShader').textContent,
+    fragmentShader: document.getElementById('myFragmentShader').textContent
+  });
+  
+  var gui = new dat.GUI();
+  gui.domElement.id = 'gui';
+  var f1 = gui.addFolder("Coordinate System");
+  f1.add (teapotMaterial.uniforms.coordinate, 'value', {'object':0, 'world':1, 'eye':2});
+  var f2 = gui.addFolder('Shading Computation');
+  f2.add (teapotMaterial.uniforms.shading, 'value', {'per-vertex':0, 'per-pixel':1});
+  
+  light1 = new THREE.SpotLight(0xffffff, 0.2);
+  light1.position.set(10, 150, 0);
+  light1.angle = Math.PI/4;
+  light1.exponent = 10;
+  scene.add(light1);
+  light1.castShadow = true;
+  light1.shadowMapWidth = 1024;
+  light1.shadowMapHeight = 1024;
+  light1.shadowCameraNear = 10;
+  light1.shadowCameraFar = 4000;
+  light1.shadowCameraFov = light1.angle / Math.PI * 180;
+  
+  var jsonLoader = new THREE.JSONLoader();
+  var url = "teapot.json";
+  jsonLoader.load(url, function(geometry, materials) {
+    //var material = new THREE.MeshFaceMaterial(materials);
+    jsonModel = new THREE.Mesh(geometry, teapotMaterial);
+    jsonModel.scale.set(10, 10, 10);
+	jsonModel.castShadow = true;
+	jsonModel.receiveShadow = true;
+    scene.add(jsonModel);
+//    jsonModel.position.set(70, 0, 0);
+    jsonModel2 = jsonModel.clone();
+	jsonModel2.castShadow = true;
+	jsonModel2.receiveShadow = true;
+    jsonModel2.position.set(70, 0, 0);
+    jsonModel.material = new THREE.MeshLambertMaterial();
+    scene.add(jsonModel2);
+	light1.target = jsonModel;
+  });
+  
+  
+  
+  
+}
+function animate() {
+  angle += 0.01;
+  // update the uniform variable
+  
+  if (jsonModel2 !== undefined) {
+	jsonModel2.position.set (70*Math.cos(angle), 0, 70*Math.sin(angle));
+  }
+  if (light1 !== undefined) {
+		light1.position.set (70*Math.cos(angle), 150, 70*Math.sin(angle));
+  }
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+
+</html>
