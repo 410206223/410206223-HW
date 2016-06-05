@@ -1,0 +1,380 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+  <style type="text/css">
+    body {
+    background-color: #fff;
+    color: #111;
+    margin: 0px;
+    overflow: hidden;
+    font-family: Monospace;
+    font-size: 10px;
+    position: absolute;
+}
+#info {
+    position: absolute;
+    top: 3%;
+    width: 100%;
+    padding: 5px;
+    text-align: center;
+    color: #ffff00
+}
+  </style>
+
+  <title>hw7 by 410206223</title>
+
+  
+    
+
+
+
+
+<script type='text/javascript'>//<![CDATA[
+window.onload=function(){
+var renderer, camera, controls;
+var pointLight;
+var scene, sceneRTT, rtTexture, torus,torus2;
+var rttmaterial, quad;
+var camera2;
+var bodyframe, Lhandframe, Rhandframe, Lfootframe, Rfootframe, headframe;
+init();
+animate();
+
+function init()
+{
+	
+	rtTexture = new THREE.WebGLRenderTarget( 
+		1024,1024,
+		{ minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter, format: THREE.RGBFormat } 
+		);
+
+	renderer = new THREE.WebGLRenderer({antialias: true});
+	renderer.setSize (window.innerWidth, window.innerHeight);
+	document.body.appendChild (renderer.domElement);
+	renderer.setClearColor (0x888888);
+	renderer.autoClear = false;
+  
+	camera = new THREE.PerspectiveCamera (45, window.innerWidth/window.innerHeight, 0.1, 10000);
+	camera.position.y = 0;
+	camera.position.z = 400;
+	camera.lookAt (new THREE.Vector3(0,0,0));
+
+	camera2 = new THREE.OrthographicCamera (window.innerWidth / -2, window.innerWidth / 2 , window.innerHeight / 2, window.innerHeight / -2, -1, 1000);
+
+	// add control here (after the camera is defined)
+	controls = new THREE.OrbitControls (camera, renderer.domElement);
+//////////////////////////////////////////////////////////////////////////
+	// render a torus to texture
+	// then apply the texture to a quad,
+  // with a monochrome filter
+	sceneRTT = new THREE.Scene();	
+	pointLight = new THREE.PointLight (0xffffff);
+	pointLight.position.set (0,300,200);
+	sceneRTT.add (pointLight);
+
+	torus = new THREE.Mesh (new THREE.TorusGeometry(6.5, 1, 16, 100),
+	new THREE.MeshLambertMaterial({color:0xff1234}));
+  torus.position.set(0, 48, 0);
+	torus.scale.set (3,3,3);
+  torus.rotation.x = Math.PI/2;
+	sceneRTT.add (torus);
+  
+	scene = new THREE.Scene();
+	rttmaterial = new THREE.ShaderMaterial( {
+    depthWrite: false,
+		uniforms: {
+    colors: {
+  		type: 'f',
+  		value: 0.0},
+    texture: {type: "t", 
+    value: rtTexture}},
+		vertexShader: document.getElementById( 'myVertexShader' ).textContent,
+		fragmentShader: document.getElementById( 'myFragmentShader' ).textContent} 
+		);
+  rttmaterial.side = THREE.DoubleSide;
+	
+  var plane = new THREE.PlaneGeometry( window.innerWidth ,window.innerHeight );
+	quad = new THREE.Mesh (plane, rttmaterial);
+	scene.add (quad);
+  
+  //PART 2
+  var gui = new dat.GUI();
+  gui.add(rttmaterial.uniforms.colors, 'value', 0, 1.0).name('color');
+  
+  pointLight2= pointLight.clone();
+  sceneMono = new THREE.Scene();
+  sceneMono.add(pointLight2);
+
+  torus2 = new THREE.Mesh(new THREE.TorusGeometry(6.5, 1, 16, 100),
+    new THREE.MeshLambertMaterial({
+      color: 0x12ffee,
+      colorWrite: false
+    }));
+  torus2.position.set(0, 48, 0);
+  torus2.scale.set (3,3,3);
+  torus2.rotation.x = Math.PI / 2;
+  sceneMono.add(torus2);
+
+  sceneColor = new THREE.Scene();
+  
+  THREE.ImageUtils.crossOrigin = '';
+  body = Body();
+  bodyframe = new THREE.Object3D();
+  bodyframe.add(body);
+  body.position.set(0, 44, 0);
+
+  var lid1 = Lid();
+  var lid2 = Lid();
+  var lid3 = Lid();
+  var lid4 = Lid();
+  lid2.rotation.order = 'YXZ';
+  lid3.rotation.order = 'YXZ';
+  lid4.rotation.order = 'YXZ';
+  lid1.position.set(0, 25, 12);
+  lid2.rotation.y = Math.PI  ;
+  lid2.position.set(0, 25, -12); 
+  lid3.rotation.y = Math.PI / 2;
+  lid3.position.set(12, 25, 0);
+  lid4.rotation.y = -Math.PI / 2;
+  lid4.position.set(-12, 25, 0);
+  lid1.rotation.x = -Math.PI / 4;
+  lid2.rotation.x = -Math.PI / 4;
+  lid3.rotation.x = -Math.PI / 4;
+  lid4.rotation.x = -Math.PI / 4;
+  bodyframe.add(lid1);
+  bodyframe.add(lid2);
+  bodyframe.add(lid3);
+  bodyframe.add(lid4);
+
+  Lhand = Hand();
+  Lhandframe = new THREE.Object3D();
+  Lhandframe.add(Lhand);
+  Lhand.position.set(0, -14, 0);
+  bodyframe.add(Lhandframe);
+  Lhandframe.position.set(16, 62, 0);
+  Lhandframe.rotation.x = -Math.PI / 2.5;
+
+  Rhand = Hand();
+  Rhandframe = new THREE.Object3D();
+  Rhandframe.add(Rhand);
+  Rhand.position.set(0, -14, 0);
+  bodyframe.add(Rhandframe);
+  Rhandframe.position.set(-10, 62, 0);
+  Rhandframe.rotation.z = - Math.PI / 2.5;
+
+  Lfoot = Foot();
+  Lfootframe = new THREE.Object3D();
+  Lfootframe.add(Lfoot);
+  Lfoot.position.set(0, -16, 0);
+  bodyframe.add(Lfootframe);
+  Lfootframe.position.set(6, 29, 0);
+
+  Rfoot = Foot();
+  Rfootframe = new THREE.Object3D();
+  Rfootframe.add(Rfoot);
+  Rfoot.position.set(0, -16, 0);
+  bodyframe.add(Rfootframe);
+  Rfootframe.position.set(-6, 29, 0);
+
+  head = Head();
+  headframe = new THREE.Object3D();
+  headframe.add(head);
+  head.position.set(0, 16, 0);
+  bodyframe.add(headframe);
+  headframe.position.set(0, 64, 0);
+
+
+  sceneColor.add(pointLight2);
+  sceneColor.add(bodyframe);
+}
+
+function Body() {
+  var materials = [];
+  // must give 6 materials for box geometry
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    visible: false
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/xVNdhFC.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+  }));
+  body = new THREE.Mesh(new THREE.BoxGeometry(24, 40, 24), new THREE.MeshFaceMaterial(materials));
+  return body;
+}
+
+function Lid() {
+
+  var lidframe = new THREE.Object3D();
+
+  var lidPlane = new THREE.Mesh(new THREE.PlaneGeometry(24, 10),
+    new THREE.MeshLambertMaterial({
+      side: THREE.DoubleSide,
+      map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+    }));
+  lidframe.add(lidPlane);
+  lidPlane.position.y = -5;
+  //lid.rotation.x = -Math.PI / 2;
+  return lidframe;
+}
+
+function Hand() {
+  hand = new THREE.Mesh(new THREE.BoxGeometry(10, 25, 10), new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+  }));
+  return hand;
+}
+
+function Foot() {
+  foot = new THREE.Mesh(new THREE.BoxGeometry(10, 26, 22), new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/eORQGFi.png')
+  }));
+  return foot;
+}
+
+function Head() {
+  var materials = [];
+  // must give 6 materials for box geometry
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/9CFFhg5.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/P8wJCdM.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/pV04buf.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    visible: false
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/LjkNXFV.png')
+  }));
+  materials.push(new THREE.MeshLambertMaterial({
+    side: THREE.DoubleSide,
+    map: THREE.ImageUtils.loadTexture('http://i.imgur.com/EwbyTKj.png')
+  }));
+
+  head = new THREE.Mesh(new THREE.BoxGeometry(50, 32, 34), new THREE.MeshFaceMaterial(materials));
+  return head;
+}
+
+
+
+window.onresize = function () {
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function animate()
+{
+	controls.update();
+	
+	requestAnimationFrame ( animate );
+	renderer.clear();
+  
+ 	renderer.setClearColor (0x888800);
+	renderer.render (sceneRTT, camera, rtTexture, true);
+	// rtTexture has colored torus
+  
+	// render texture to screne
+  renderer.setClearColor (0x008888);
+	renderer.render (scene, camera2);//, rtTexture2, true);
+  
+  //renderer.setClearColor(0x888888);
+  renderer.render(sceneMono, camera);
+  renderer.render(sceneColor, camera);
+  
+  // rtTexture2 has monochorme torus
+	// render a board with a monochomre background
+  // render to depth buffer (no color), the scene
+  // render the colored inside cylinder.
+  //?? can I disable color buffer output
+	//renderer.render (sceneFinal, camera);
+
+}
+
+}//]]> 
+
+</script>
+
+  
+</head>
+
+<body>
+  <div id="info">
+<br> hw7
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r76/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">
+</script>
+<script 
+src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js">
+</script>
+    
+<script id="myVertexShader" type="x-shader/x-vertex">
+	varying vec2 vUv;
+	void main() {
+		gl_Position = projectionMatrix* modelViewMatrix * vec4( position, 1.0);
+		vUv = uv;
+	}
+</script>
+<script id="myFragmentShader" type="x-shader/x-fragment">
+	uniform sampler2D texture;
+  uniform float colors;
+	varying vec2 vUv;
+vec3 rgb2hsv(vec3 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c)
+{
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}	
+	void main() {
+		vec4 color = texture2D (texture, vUv);
+    vec3 hsv = rgb2hsv (color.rgb);
+    hsv.y = hsv.y * colors;
+    vec3 rgb = hsv2rgb (hsv.xyz);
+	gl_FragColor = vec4 (rgb, 1.0);
+	}
+</script>
+
+  
+</body>
+
+</html>
