@@ -1,0 +1,290 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="googlebot" content="noindex, nofollow">
+
+  <script type="text/javascript" src="https://code.jquery.com/jquery-2.2.4.js"></script>
+  
+    <link rel="stylesheet" type="text/css" href="/css/result-light.css">
+
+  <style type="text/css">
+    
+  </style>
+  <title>HW4 work</title>
+<script type='text/javascript'>//<![CDATA[
+window.onload=function(){
+var camera, scene, renderer, controls, radius = 5,
+  color = 0,
+  g = 1,
+  light;
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+var pickplane;
+var cyl;
+var spheres = [];
+
+init();
+animate();
+
+$('#radius').change(function() {
+  $('#radiusPrint').text($(this).val());
+  radius = $(this).val();
+  cyl.geometry = new THREE.RingGeometry(+radius, +radius + 5, 30);
+});
+$('#Sphere').click(
+  function() {
+    g = 0;
+  }
+);
+$('#Box').click(
+  function() {
+    g = 1;
+  }
+);
+$('#TorusKnot').click(
+  function() {
+    g = 2;
+  }
+);
+
+$('#r').click(function() {
+  color = 0;
+});
+$('#b').click(function() {
+  color = 1;
+});
+$('#g').click(function() {
+  color = 2;
+});
+
+$('#clear').click(function() {
+
+  spheres.forEach(function(sphere) {
+    scene.remove(sphere);
+  });
+  spheres = [];
+
+});
+
+$('#save').click(function() {
+
+  var states = [];
+  spheres.forEach(function(sphere) {
+    states.push(sphere.name);
+  });
+
+  localStorage.setItem('stateStr', JSON.stringify(states));
+
+});
+
+$('#restore').click(function() {
+
+  var states = JSON.parse(localStorage.getItem('stateStr'));
+  states.forEach(function(stateStr) {
+    console.log(stateStr);
+    var state = JSON.parse(stateStr);
+    buildSphere(state.rad, new THREE.Vector3(state.pos[0], 0, state.pos[1]), state.color, state.geo);
+  });
+
+});
+
+function buildSphere(rad, pos, color, g) {
+  if (g == 0) {
+    var geometry = new THREE.SphereGeometry(rad, 20, 20);
+  } else if (g == 1) {
+    var geometry = new THREE.BoxGeometry(rad * 2, rad * 2, rad * 2);
+  } else if (g == 2) {
+    var geometry = new THREE.TorusKnotGeometry(rad, rad / 3, 20, 20);
+  }
+  if (color == 0)
+    var material = new THREE.MeshLambertMaterial({
+      color: 'red'
+    });
+  else if (color == 1)
+    var material = new THREE.MeshLambertMaterial({
+      color: 'blue'
+    });
+  else if (color == 2)
+    var material = new THREE.MeshLambertMaterial({
+      color: 'green'
+    });
+  var sphere = new THREE.Mesh(geometry, material);
+  sphere.castShadow = true;
+  sphere.receiveShadow = true;
+  scene.add(sphere);
+  var prop = {
+    rad: rad,
+    pos: [pos.x, pos.z],
+    color: color,
+    geo: g
+  };
+  console.log(prop);
+  sphere.name = JSON.stringify(prop);
+  console.log(sphere.name);
+
+  spheres.push(sphere);
+  sphere.position.copy(pos);
+
+}
+
+function init() {
+
+  var ww = $("#container").innerWidth();
+  var hh = $("#container").innerHeight();
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(ww, hh);
+  renderer.setClearColor(0x888888);
+  $("#container").append(renderer.domElement);
+
+  ////////////////////////////////////////////////
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, ww / hh, 1, 1000);
+  camera.position.z = 500;
+  scene.add(camera);
+  light = new THREE.PointLight(0xffffff, 1);
+  light.position.y = 100;
+  light.castShadow = true;
+  scene.add(light);
+  var cyl_geom = new THREE.RingGeometry(5, 10, 32);
+  var cyl_mat = new THREE.MeshBasicMaterial({
+    color: 'black',
+  });
+  cyl = new THREE.Mesh(cyl_geom, cyl_mat);
+  cyl.rotation.x = -Math.PI / 2;
+  cyl.position.set(-20, 0, 20);
+  scene.add(cyl);
+
+  pickplane = new THREE.Mesh(new THREE.PlaneGeometry(200, 200),
+    new THREE.MeshBasicMaterial({
+      color: 'yellow'
+    }));
+  pickplane.rotation.x = -Math.PI / 2;
+  scene.add(pickplane);
+  pickplane.material.visible = false;
+
+  var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+  scene.add(gridXZ);
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  window.addEventListener('resize', onWindowResize, false);
+  window.addEventListener('mousemove', onDocumentMouseMove, false);
+  window.addEventListener('mousedown', onDocumentMouseDown, false);
+}
+
+function onWindowResize() {
+  var ww = $("#container").innerWidth();
+  var hh = $("#container").innerHeight();
+
+  camera.aspect = ww / hh;
+  camera.updateProjectionMatrix();
+  renderer.setSize(ww, hh);
+}
+
+function onDocumentMouseMove(event) {
+
+  //event.preventDefault();
+
+  var viewportPos = $('#container').get(0).getBoundingClientRect();
+  mouse.x = ((event.clientX - viewportPos.left) / $('#container').innerWidth()) * 2 - 1;
+  mouse.y = -((event.clientY - viewportPos.top) / $('#container').innerHeight()) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObject(pickplane);
+  if (intersects.length > 0) {
+    cyl.position.copy(intersects[0].point);
+    cyl.position.y = 2;
+  }
+}
+
+function onDocumentMouseDown(event) {
+
+  //event.preventDefault();
+
+  var viewportPos = $('#container').get(0).getBoundingClientRect();
+  mouse.x = ((event.clientX - viewportPos.left) / $('#container').innerWidth()) * 2 - 1;
+  mouse.y = -((event.clientY - viewportPos.top) / $('#container').innerHeight()) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObject(pickplane);
+  if (intersects.length > 0) {
+    cyl.position.copy(intersects[0].point);
+    buildSphere(radius, intersects[0].point, color, g);
+  }
+}
+
+function animate() {
+
+  controls.update();
+  requestAnimationFrame(animate);
+  render();
+}
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+}//]]> 
+
+</script>
+
+  
+</head>
+
+<body>
+  <h1 style="text-align:center"> Homework 4 </h1>
+<hr>
+<div id="container" style="float:left; margin:3px; width:60vw; height:60vw">
+</div>
+
+<div style="float:left; margin-left: 10px; width:32vw;">
+
+  <div>
+    Sphere radius:
+    <input id="radius" type="range" min=3 max=30 value=5>
+    <span id='radiusPrint'>
+</span>
+    <br>
+  </div>
+  <br>
+  <div style='background-color:pink'>
+    Color Selector:
+    <br>
+    <form>
+      <input type=radio id='r' name='c' value='red'>red
+      <input type=radio id='b' name='c' value='blue'>blue
+      <input type=radio id='g' name='c' value='green'>green
+    </form>
+    <button id='Sphere'>Sphere</button>
+    <button id='Box'>Box</button>
+    <button id='TorusKnot'>TorusKnot</button>
+  </div>
+  <br>
+  <button id='clear' style="width:45%">Clear</button>
+  <button id='save' style="width:45%">Save</button>
+  <button id='restore' style="width:45%">Restore</button>
+</div>
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js">
+
+
+</script>
+
+  
+  <script>
+  // tell the embed parent frame the height of the content
+  if (window.parent && window.parent.parent){
+    window.parent.parent.postMessage(["resultsFrame", {
+      height: document.body.getBoundingClientRect().height,
+      slug: "None"
+    }], "*")
+  }
+</script>
+
+</body>
+
+</html>
+
